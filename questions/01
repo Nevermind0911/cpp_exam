@@ -1,0 +1,256 @@
+* Сортировка и структуры данных C vs OOP
+* private/protected наследование
+* C++11: final, override
+
+# Сортировка и структуры данных:
+## Сортировка:
+### В стиле C:
+
+```c
+struct point_s {
+	int x, y;
+};
+
+void qsort(void *base, size_t num, size_t size, int (*compar)(const void*, const void*)){}
+
+int cmp_point(const void* v1, const void* v2) {
+	const struct point_s *p1 = (const struct point_s*)v1;
+	const struct point_s *p2 = (const struct point_s*)v2;
+}
+
+struct point_s points[10];
+qsort(points, 10, sizeof[points[0]], cmp_point);
+```
+
+также можно делать и с обычными типами данных (int, char, etc.)
+
+### В стиле OOP:
+
+```cpp
+class Comparable {
+	virtual int compare (const Comparable *v) = 0 const; // чисто виртуальный метод, что делает данный класс абстрактным
+};
+
+void nsort(Comparable **m, std::size_t size) { // Принимает массив указателей на объекты Comparable и количество
+... // Реализация любой сортировки с компаратором (прим. MergeSort)
+m[i] = ;
+}
+
+class Point : public Comparable {
+private:
+	int x,y;
+public:
+	virtual int compare(const Comparable *v) const {...} // Реализуем компаратор
+};
+
+Point **points;
+nsort(points, N);
+```
+
+Реализуем объектно-ориентированный подход к сортировке с использованием полиморфизма. Таким способом мы можем сортировать любые типы данных (даже прмитивные), если они используют метод compare (для примитивных нужно сделать наследника с методом compare).
+
+## Структуры данных:
+
+Для примера будем рассматривать связный список
+
+### В стиле C:
+
+```c
+struct node_s {
+	void *user_data;
+	struct node_s *next;
+};
+struct list_s {
+	struct node_s *head;
+};
+
+void push_back(struct list_s *l, struct node_s *n);
+struct node_s *n = malloc(sizeof(struct node_s));
+n->user_data = malloc(sizeof(struct point_s));
+push_back(&l, n);
+```
+
+! Два раза вызываем malloc, void* => нет проверки типов от компилятора.
+
+### В стиле OOP: 
+
+Делаем базовый класс, от которого наследуются почти все классы в C++ (?)
+```cpp
+class Object {
+public:
+	// for read-black_tree\priority_queue\etc
+	virtual bool operator<(const Object *o) { return this < o; }
+	virtual bool operator==(const Object *o) {return this == o; }
+	// for hash_table
+	virtual int hash(const Object *o) {return (int)this; }
+};
+```
+
+Сам список:
+```cpp
+class Node {
+private:
+	Object *o;
+	Node *next;
+	...
+};
+
+class List {
+	Node *head;
+public:
+	void push_back(Node *n);
+};
+
+class Point : public Object {
+	int x, y;
+	virtual bool operator<(const Object *o) {
+		Point *p = (Point *)o;
+		...
+	}
+};
+
+List l;
+Node *n = new Node;
+n->setData(new Point(3,3));
+l.push_back(n);
+```
+
+! Два вызова new, необходимо делать обертки для примитивных типов, иногда придется использовать множественное наследование.
+
+# private/protected наследование:
+
+## private:
+
+Особенности:
+* Все члены базового класса становятся приватными в производном классе.
+* Производный класс имеет доступ к public и protected членам базового класса, но они недоступны извне.
+
+Пример:
+```cpp
+#include <iostream>
+
+class Base {
+public:
+	void function1() { std::cout << "1st funtion." << '\n'; }
+protected:
+	void function2() { std::cout << "2nd function" << '\n'; } 
+};
+
+class Derived : private Base {
+public:
+	void callFunctions() {
+		function1();
+		function2();
+	}
+};
+
+int main() {
+	Derived d;
+	d.callFunctions(); // Сработает
+	d.funtion1(); // Не сработает (нет доступа, тк function1() стала приватной)!
+	return 0;
+}
+```
+
+## protected:
+
+Особенности:
+* `public` члены базового класса становятся `protected` в производном.
+* Производный класс и его наследники имеют доступ к `public` и `protected` методам базового, но они недоступны извне.
+
+Пример:
+```cpp
+#include <iostream>
+
+class Base {
+public:
+	void function1() { std::cout << "1st funtion." << '\n'; }
+protected:
+	void function2() { std::cout << "2nd function" << '\n'; } 
+};
+
+class Derived : protected Base {
+public:
+	void callFunctions1() {
+		function1();
+		function2();
+	}
+};
+
+class GrandDerived : public Deriver {
+public:
+	void callFunctions2() {
+		function1();
+		function2();
+	}
+};
+
+int main() {
+	Derived d;
+	d.callFunctions1(); // Сработает
+	d.funtion1(); // Не сработает (нет доступа, тк function1() стала приватной)!
+	GrandDerived gd;
+	gd.callFunctions2(); // Сработает
+	return 0;
+}
+```
+
+Итог:
+* `Private` наследование полностью скрывает базовый класс от внешнего мира и наследников.
+* `Protected` наследование позволяет наследникам производного класса использовать члены базового.
+
+# C++11: final, override
+
+## final:
+
+Используется для предотвращения дальнейшего наследования класса или переопределения виртуальной функции.
+
+Пример для класса:
+```cpp
+class Base final {
+...
+};
+
+// Ошибка! Нельзя наследовать из final-класса
+class Derived : public Base {
+...
+}
+```
+
+Пример для метода:
+```cpp
+class Base {
+public:
+	virtual void func() final {...}
+};
+
+class Derived : public Base {
+public:
+	void func() override {...} // Ошибка! тк функция помечена как final
+};
+```
+
+## override:
+
+Использутся в производных классах, чтобы явно указать что метод переопределяет виртуальную функцию из базового. Позволяет избежать ошибок, связанных с неправильным переопределением.
+
+Пример:
+```cpp
+class Base {
+public:
+	virtual void func() const { std::cout << "Base out." << '\n'; }
+};
+
+class Derived : public Base {
+public:
+	void func() const override { std::cout << "Derived out." << '\n'; }
+};
+
+int main() {
+	Base *obj = new Derived;
+	obj->func(); // Выведет Derived out.
+	delete obj;
+	return 0;
+}
+```
+
